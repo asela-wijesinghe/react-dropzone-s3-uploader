@@ -213,14 +213,17 @@ export default class DropzoneS3Uploader extends React.Component {
     }
 
     return (
-      <Dropzone
-        ref={c => (this._dropzone = c)}
-        onDrop={this.handleDrop}
-        {...dropzoneProps}
-      >
+      <div>
+        {" "}
         <h1>Test</h1>
-        {content}
-      </Dropzone>
+        <Dropzone
+          ref={c => (this._dropzone = c)}
+          onDrop={this.handleDrop}
+          {...dropzoneProps}
+        >
+          {/* {content} */}
+        </Dropzone>
+      </div>
     );
   }
 }
