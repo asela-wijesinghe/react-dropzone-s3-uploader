@@ -6,6 +6,7 @@ import Dropzone from 'react-dropzone'
 export default class DropzoneS3Uploader extends React.Component {
 
   static propTypes = {
+    // getWaitingQueue: PropTypes.func,
     filename: PropTypes.string,
     s3Url: PropTypes.string.isRequired,
     notDropzoneProps: PropTypes.array.isRequired,
@@ -47,8 +48,8 @@ export default class DropzoneS3Uploader extends React.Component {
     isImage: filename => filename && filename.match(/\.(jpeg|jpg|gif|png|svg)/i),
     notDropzoneProps: ['onFinish', 's3Url', 'filename', 'host', 'upload', 'isImage', 'notDropzoneProps'],
     style: {
-      width: 200,
-      height: 200,
+      width: '100%',
+      height: 300,
       border: 'dashed 2px #999',
       borderRadius: 5,
       position: 'relative',
@@ -64,6 +65,7 @@ export default class DropzoneS3Uploader extends React.Component {
       backgroundColor: '#ffdddd',
     },
   }
+
 
   constructor(props) {
     super()
@@ -82,6 +84,8 @@ export default class DropzoneS3Uploader extends React.Component {
     waitingQueue: []
   }
   }
+
+
 
   componentWillMount = () => this.setUploaderOptions(this.props)
   componentWillReceiveProps = props => this.setUploaderOptions(props)
@@ -108,6 +112,22 @@ export default class DropzoneS3Uploader extends React.Component {
   handleError = (err, file) => {
     this.props.onError && this.props.onError(err, file)
     this.setState({error: err, progress: null})
+
+   const  {waitingQueue} = this.state;
+    //swap videos to waiting queue on error
+    waitingQueue.shift();
+
+    if(waitingQueue.length>0){
+    const nextElement = waitingQueue[0];
+
+    const options = {
+      files: [nextElement],
+      ...this.state.uploaderOptions
+    }
+
+
+      new S3Upload(options) // eslint-disable-line
+    }
   }
 
   handleFinish = (info, file) => {
@@ -119,31 +139,49 @@ export default class DropzoneS3Uploader extends React.Component {
     const uploadedFiles = this.state.uploadedFiles
     uploadedFiles.push(uploadedFile)
 
-    //swap videos to waiting queue
+    //swap videos to waiting queue on finish
     waitingQueue.shift();
+
     if(waitingQueue.length>0){
-      new S3Upload(waitingQueue[0]) // eslint-disable-line
+    const nextElement = waitingQueue[0];
+  
+    const options = {
+        files: [nextElement],
+      ...this.state.uploaderOptions
     }
+
+      new S3Upload(options) // eslint-disable-line
+    }
+
     this.setState({uploadedFiles, error: null, progress: null}, () => {
       this.props.onFinish && this.props.onFinish(uploadedFile)
     })
   }
 
   handleDrop = (files, rejectedFiles) => {
+
+    const {getWaitingQueue} =this.props;
     const {waitingQueue} = this.state;
-    this.setState({uploadedFiles: [], error: null, progress: null})
-    const options = {
-      files,
-      ...this.state.uploaderOptions,
-    }
+    // this.setState({uploadedFiles: [], error: null, progress: null})
 
-    //add to waiting queue
-      waitingQueue.push(options);
-      this.setState({ waitingQueue: [...waitingQueue]})
-    if(waitingQueue.length<=1){
 
-      new S3Upload(waitingQueue[0]) // eslint-disable-line
-    }
+    //upload if its the 1st elemnt of the queue
+    if(waitingQueue.length===0){
+      const firstElement = files[0]
+      const options = {
+        files: [firstElement],
+        ...this.state.uploaderOptions,
+      }
+          new S3Upload(options) // eslint-disable-line
+      }
+
+    //add to waiting queue - default action
+    files.forEach((file)=> {
+      waitingQueue.push(file);
+    });
+
+    this.setState({ waitingQueue: [...waitingQueue]})
+    getWaitingQueue(waitingQueue)
     this.props.onDrop && this.props.onDrop(files, rejectedFiles)
   }
 
@@ -171,6 +209,7 @@ export default class DropzoneS3Uploader extends React.Component {
       fileComponent,
       progressComponent,
       errorComponent,
+      getWaitingQueue,
       ...dropzoneProps,
     } = this.props
 
